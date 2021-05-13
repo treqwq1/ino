@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ino.web.freeBoard.mapper.FreeBoardMapper" >
+
+	<!-- 공통코드 찾기  -->
+	<select id="freeBoardCommon" resultType="Map" >
+		SELECT D.GR_CODE,D.CODE,D.CODE_NAME 
+		from CODEM M 
+		JOIN CODED D
+		ON M.GR_CODE=D.GR_CODE
+		WHERE D.USE_YN='Y' and (D.GR_CODE='GR002' or D.GR_CODE='GR001')
+	</select>
+	
+	
+	
+	<!-- 게시글 갯수 찾기 -->
+	<select id="freeBoardcnt" resultType="int" parameterType="hashmap">
+		SELECT COUNT(*) FROM FREEBOARD
+		<where>
+			<if test="select==1">AND CODE_TYPE = #{select1} </if>
+			<if test="select==2">AND NAME LIKE '%'||#{select1}||'%' </if>
+			<if test="select==3"> AND CONTENT LIKE '%'||#{select1}||'%'</if>
+			<if test="select==4"> AND TITLE LIKE '%'||#{select1}||'%'</if>
+			<if test="select==5"> AND NUM = #{select1}</if>
+			<if test="select==6"> AND to_char(REGDATE , 'YYYYMMDD') BETWEEN #{select2}
+				AND #{select3}
+			</if>
+		</where>
+	</select>
+
+	<!-- 페이징 시작과 끝에 맞는 게시글 찾기 -->
+	<select id="freeBoardGetList" resultType="freeBoardDto"
+		parameterType="hashMap"> <!-- resultType="ino.web.board.dto.BoardDto" -->
+		SELECT DECODE(CODE_TYPE,'01','자유','02','익명','03','QnA') as codeType,
+		NUM, NAME, TITLE, CONTENT, TO_CHAR(REGDATE , 'YYYY/MM/DD') AS REGDATE
+		FROM (
+		SELECT ROWNUM RN, A.* FROM(
+		SELECT * FROM FREEBOARD
+		<where>
+			<if test="select==1">AND CODE_TYPE = #{select1} </if>
+			<if test="select==2">AND NAME LIKE '%'||#{select1}||'%' </if>
+			<if test="select==3"> AND CONTENT LIKE '%'||#{select1}||'%'</if>
+			<if test="select==4"> AND TITLE LIKE '%'||#{select1}||'%'</if>
+			<if test="select==5"> AND NUM = #{select1}</if>
+			<if test="select==6"> AND to_char(REGDATE , 'YYYYMMDD') BETWEEN #{select2}
+				AND #{select3}
+			</if>
+		</where>
+		ORDER BY NUM
+		) A
+		)
+		WHERE RN BETWEEN #{start} AND #{end}
+
+	</select>
+
+	<!-- <select id="freeBoardfindsct" resultType="freeBoardDto" parameterType="hashMap"> 
+		SELECT DECODE(CODE_TYPE,'01','자유','02','익명','QnA') as codeType, NUM, NAME, 
+		TITLE, CONTENT, TO_CHAR(REGDATE , 'YYYY/MM/DD') AS REGDATE FROM FREEBOARD 
+		<where> <if test="codeType!=null">AND CODE_TYPE = #{codeType} </if> <if test="name 
+		!= null" >AND NAME LIKE '%'||#{name}||'%' </if> <if test="title != NULL"> 
+		AND TITLE LIKE '%'||#{title}||'%'</if> <if test="content != NULL"> AND CONTENT 
+		LIKE '%'||#{content}||'%'</if> <if test="num != NULL"> AND NUM = #{num}</if> 
+		<if test="regdate1 != NULL"> AND to_char(REGDATE , 'yyyymmdd') BETWEEN #{regdate1} 
+		AND #{regdate2}</if> </where> </select> -->
+
+
+    <!--글번호에 맞는 게시글 1개 찾기  -->
+	<select id="freeBoardfindDto" resultType="freeBoardDto"
+		parameterType="int">
+		SELECT CODE_TYPE as codeType ,NUM,NAME,TITLE,CONTENT
+		FROM FREEBOARD
+		WHERE NUM=#{num}
+	</select>
+
+	<!--인서트 후에 들어간 넘버값 찾기 -->
+	<insert id="freeBoardInsertPro" parameterType="freeBoardDto">
+		INSERT INTO FREEBOARD(CODE_TYPE ,NUM, TITLE, NAME, REGDATE, CONTENT)
+		VALUES(#{codeType} ,NUM_SEQ.NEXTVAL, #{title}, #{name}, SYSDATE,
+		#{content})
+		<selectKey keyProperty="num" resultType="int" order="AFTER">
+			SELECT
+			num_seq.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+
+    <!--수정하기 들어갈때 게시글 찾기  -->
+	<select id="freeBoardDetailByNum" resultType="freeBoardDto"
+		parameterType="int">
+		SELECT NUM, TITLE, NAME, TO_CHAR(REGDATE,'YYYY/MM/DD')
+		REGDATE, CONTENT FROM FREEBOARD
+		WHERE NUM=#{num}
+	</select>
+
+	<!-- 마지막 시퀀스 값 찾기  -->
+	<select id="freeBoardNewNum" resultType="int">
+		SELECT MAX(NUM)
+		FROM
+		FREEBOARD
+	</select>
+
+	<!--수정하기  -->
+	<update id="freeBoardModify" parameterType="freeBoardDto">
+		UPDATE FREEBOARD
+		SET
+		TITLE = #{title}
+		, CONTENT = #{content}
+		WHERE NUM = #{num}
+
+	</update>
+
+	<!-- 삭제하기  -->
+	<delete id="freeBoardDelete" parameterType="int">
+		DELETE FROM FREEBOARD
+		WHERE NUM
+		= #{num}
+
+	</delete>
+	
+	<!-- 체크갯수에 따른 여러개 삭제  -->
+	<delete id="freeBoardDeleteCK" parameterType="java.util.ArrayList">
+		DELETE FROM FREEBOARD
+		WHERE NUM in
+		<foreach collection="list" item="check" open="(" separator=","
+			close=")" index="index">
+			#{check}
+		</foreach>
+	</delete>
+
+
+</mapper>
